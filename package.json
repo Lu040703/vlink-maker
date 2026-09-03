@@ -1,6 +1,6 @@
 {
   "name": "vlink-maker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "VLink 聚合页制作器 —— 本地免费版，功能对齐 VLink 付费功能（密码保护、无限模块、自定义样式全部免费）",
   "main": "main.js",
   "author": "bailorevanoff-hash",
