@@ -4,7 +4,7 @@
  * 这是一个纯本地应用：不联网、不上传、所有数据存在你自己的电脑上。
  */
 
-const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, shell, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -29,11 +29,18 @@ if (!gotTheLock) {
 let mainWindow = null;
 
 function createWindow() {
+  // 窗口尺寸自适应屏幕：笔记本小屏 / 系统缩放 125%-150% 时，
+  // 写死的大窗口会超出屏幕，导致弹窗底部的按钮跑到屏幕外点不到
+  const area = screen.getPrimaryDisplay().workAreaSize;   // 屏幕可用区（已扣任务栏、已考虑 DPI 缩放）
+  const winW = Math.max(960, Math.min(1440, Math.floor(area.width * 0.94)));
+  const winH = Math.max(600, Math.min(920, Math.floor(area.height * 0.94)));
+
   mainWindow = new BrowserWindow({
-    width: 1440,
-    height: 920,
-    minWidth: 1100,
-    minHeight: 700,
+    width: winW,
+    height: winH,
+    minWidth: 960,
+    minHeight: 600,
+    center: true,
     title: 'VLink 页面制作器',
     backgroundColor: '#f4f5f7',
     autoHideMenuBar: false,
