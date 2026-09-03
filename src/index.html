@@ -1074,8 +1074,17 @@ function openModal(id, type){
   $('mTitle').textContent = (editId?'编辑':'添加') + ' · ' + meta.n;
   $('mBody').innerHTML = buildForm(editType);
   $('mask').classList.add('on');
+  /* 弹窗期间让预览区不接收鼠标事件，避免焦点被 iframe 抢走导致输入不进去 */
+  var st=$('stage'); if(st) st.style.pointerEvents='none';
+  setTimeout(function(){
+    var f=document.querySelector('#mBody input, #mBody textarea');
+    if(f) f.focus();
+  },40);
 }
-function closeModal(){ $('mask').classList.remove('on'); }
+function closeModal(){
+  $('mask').classList.remove('on');
+  var st=$('stage'); if(st) st.style.pointerEvents='';
+}
 
 function fld(label, inner, hint){
   return '<div class="fld"><label class="lab">'+label+'</label>'+inner+
@@ -1801,10 +1810,15 @@ function importJSON(){
 var qrObj=null;
 function openQR(){
   $('qrmask').classList.add('on');
+  var st=$('stage'); if(st) st.style.pointerEvents='none';
   var url=$('qrUrl').value || '';
   genQR(url);
+  setTimeout(function(){ var f=$('qrUrl'); if(f) f.focus(); },40);
 }
-function closeQR(){ $('qrmask').classList.remove('on'); }
+function closeQR(){
+  $('qrmask').classList.remove('on');
+  var st=$('stage'); if(st) st.style.pointerEvents='';
+}
 function genQR(){
   var url=$('qrUrl').value.trim();
   if(!url){
