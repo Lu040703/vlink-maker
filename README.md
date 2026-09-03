@@ -4,6 +4,11 @@
 
 打包成 Windows 桌面程序（.exe），数据只存在你自己电脑上，不上传任何服务器。
 
+## 下载桌面版
+
+👉 [点这里下载最新版 exe](https://github.com/Lu040703/vlink-maker/releases/latest)
+（zip 压缩包，解压后双击 `VLink页面制作器.exe` 即可使用，免安装）
+
 ## 它能做什么
 
 | 功能 | 说明 |
