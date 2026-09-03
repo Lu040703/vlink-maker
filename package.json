@@ -1,0 +1,17 @@
+{
+  "name": "vlink-maker",
+  "version": "1.0.0",
+  "description": "VLink 聚合页制作器 —— 本地免费版，功能对齐 VLink 付费功能（密码保护、无限模块、自定义样式全部免费）",
+  "main": "main.js",
+  "author": "bailorevanoff-hash",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-packager . \"VLink页面制作器\" --platform=win32 --arch=x64 --out=dist --overwrite --app-version=1.0.0 --ignore=\"test_smoke.js\" --ignore=\"smoke.*\" --ignore=\"\\.log\" --win32metadata.ProductName=\"VLink页面制作器\" --win32metadata.FileDescription=\"VLink 聚合页制作器（本地免费版）\" --win32metadata.CompanyName=\"bailorevanoff-hash\""
+  },
+  "devDependencies": {
+    "electron": "44.1.1",
+    "electron-packager": "17.1.2"
+  }
+}
