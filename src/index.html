@@ -499,12 +499,16 @@ input[type=range]{width:100%;accent-color:var(--brand)}
             </div>
           </div>
           <div class="hint">
-            <b>ID 和 CK 去哪拿？</b><br>
+            <b>方式一：51.la（第三方免费统计）</b><br>
             1. 打开 <b>51.la</b> 注册账号（免费）<br>
             2. 添加应用，网址填你页面上线后的地址<br>
             3. 进「配置 → 统计代码」，里面有一行 <b>LA.init({id:"xxx",ck:"xxx"})</b><br>
             4. 把两个值抄进来，确认代码里 <b>autoTrack:true</b> 是开着的（否则记不了链接点击）<br><br>
-            <b>两个前提</b>：页面必须传到网上才有数据；事件上报每月有免费额度，个人页面一般用不完。
+            <b>方式二：自定义代码（推荐自有服务器用户）</b><br>
+            在自己服务器上部署了统计脚本的话（比如自建的 hit.php），选「自定义代码」粘贴统计像素，例如：<br>
+            <b>&lt;img src="https://你的域名/hit.php" style="width:1px;height:1px;border:0;" alt=""&gt;</b><br><br>
+            <b>两个前提</b>：页面必须传到网上才有数据；51.la 事件上报每月有免费额度，个人页面一般用不完。<br>
+            <b>提醒</b>：导出时如果统计信息没填有效内容，工具会弹窗拦你一次——别忽略那个弹窗。
           </div>
         </div>
       </div>
@@ -1739,8 +1743,15 @@ function buildStatsHTML(){
     return s.statsCustom ? '\n'+s.statsCustom+'\n' : '';
   }
   if(!s.laId) return '';
-  return '\n<script charset="UTF-8" id="LA_COLLECT" src="//sdk.51.la/js-sdk-pro.min.js"><\/script>\n'+
-    '<script>LA.init({id:"'+jsStr(s.laId)+'",ck:"'+jsStr(s.laCk)+'",autoTrack:true});<\/script>\n';
+  return '\n<script charset="UTF-8" id="LA_COLLECT" src="https://sdk.51.la/js-sdk-pro.min.js"><\/script>\n'+
+    '<script>LA.init({id:"'+jsStr(s.laId)+'",ck:"'+jsStr(s.laCk)+'",autoTrack:true});<\/script>\n'+
+    '<img src="https://v6.51.la/3.gif?id='+jsStr(s.laId)+'" style="width:1px;height:1px;border:0;position:absolute;" alt="">\n';
+}
+function statsWillExport(){
+  var s=state.settings;
+  if(!s.statsOn) return true; /* 用户主动不开统计，视为知情，不拦 */
+  if(s.statsType==='custom') return !!s.statsCustom;
+  return !!s.laId;
 }
 
 function buildPageHTML(){
@@ -1787,6 +1798,10 @@ function buildPageHTML(){
 /* ==================== 导出 ==================== */
 function deskAvailable(){ return !!(window.__vlinkDesktop && window.__vlinkDesktop.isDesktop); }
 function exportHTML(){
+  /* 防呆：开了统计开关但没填有效内容 → 导出后页面没有统计，弹窗确认 */
+  if(!statsWillExport()){
+    if(!confirm('⚠️ 你开了「访问统计」，但没有填有效的统计信息（51.la 的 ID/CK 或自定义代码）。\n\n这样导出的页面将【没有访问统计】，传到网上也看不到访客数据。\n\n确定要继续导出吗？\n（点「取消」回去填统计信息）')) return;
+  }
   /* 桌面版：弹出系统"另存为"窗口，用户自己选位置和文件名 */
   if(deskAvailable()){
     var h0=buildPageHTML();
