@@ -1189,7 +1189,7 @@ function buildForm(type){
   else if(type==='video'){
     h+=fld('视频标题', txt('title','例如：最新一期 vlog'));
     h+=fld('封面图片', imgField('image'));
-    h+=fld('视频链接', txt('url','抖音/ B站/ YouTube 链接'), '点击后在新窗口打开');
+    h+=fld('视频链接', txt('url','https://'), '两种填法：<br>① 平台链接（抖音/B站/快手作品页）→ 做成卡片，点击跳转过去看<br>② mp4 直链（网址以 .mp4 结尾）→ 页面内直接内嵌播放器播放');
   }
   else if(type==='music'){
     h+=fld('歌曲名', txt('title','例如：晴天'));
@@ -1429,6 +1429,8 @@ function buildPageCSS(){
 '.vl-vp i{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center}',
 '.vl-vp i:before{content:"";display:block;width:0;height:0;border-left:15px solid #1d1d1f;border-top:9px solid transparent;border-bottom:9px solid transparent;margin-left:4px}',
 '.vl-vt{position:absolute;left:0;right:0;bottom:0;padding:20px 14px 12px;background:linear-gradient(transparent,rgba(0,0,0,.62));color:#fff;font-size:14px;font-weight:500}',
+'.vl-vd video{width:100%;display:block;background:#000;aspect-ratio:16/9;object-fit:contain}',
+'.vl-plt{padding:10px 4px 13px;font-size:14px;font-weight:500;text-align:center;color:inherit}',
 '.vl-mu{display:flex;align-items:center;gap:12px;background:'+cardBg+';border:'+cardBd+';border-radius:'+r+';padding:11px 13px;margin-bottom:11px;text-decoration:none;color:inherit;box-shadow:'+shadow+';backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}',
 '.vl-mu img{width:48px;height:48px;border-radius:8px;object-fit:cover;flex-shrink:0;background:rgba(0,0,0,.05)}',
 '.vl-note{width:48px;height:48px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:'+accentOf(t)+';color:#fff;font-size:20px}',
@@ -1561,11 +1563,20 @@ function buildPageBody(){
         (b.url?'</a>':'</div>');
     }
     else if(b.type==='video'){
-      h+='<div class="vl-vd'+a+'"'+trk('视频',b.title)+(b.url?' onclick="window.open(\''+esc(b.url)+'\',\'_blank\')"':'')+'>'+
-        (b.image?'<img src="'+b.image+'" alt="">':'<div style="width:100%;height:200px;background:rgba(128,128,128,.13)"></div>')+
-        '<div class="vl-vp"><i></i></div>'+
-        (b.title?'<div class="vl-vt">'+esc(b.title)+'</div>':'')+
-      '</div>';
+      /* mp4 直链 → 内嵌播放器；平台链接 → 封面卡片跳转 */
+      if(/\.(mp4|webm|m4v|ogg|mov)(\?|#|$)/i.test(b.url||'')){
+        h+='<div class="vl-vd vl-pl'+a+'">'+
+          '<video controls playsinline preload="metadata" src="'+esc(b.url)+'"'+(b.image?' poster="'+b.image+'"':'')+'>'+
+          '您的浏览器不支持视频播放</video>'+
+          (b.title?'<div class="vl-plt">'+esc(b.title)+'</div>':'')+
+        '</div>';
+      }else{
+        h+='<div class="vl-vd'+a+'"'+trk('视频',b.title)+(b.url?' onclick="window.open(\''+esc(b.url)+'\',\'_blank\')"':'')+'>'+
+          (b.image?'<img src="'+b.image+'" alt="">':'<div style="width:100%;height:200px;background:rgba(128,128,128,.13)"></div>')+
+          '<div class="vl-vp"><i></i></div>'+
+          (b.title?'<div class="vl-vt">'+esc(b.title)+'</div>':'')+
+        '</div>';
+      }
     }
     else if(b.type==='music'){
       h+=(b.url?'<a class="vl-mu'+a+'" href="'+esc(b.url)+'" target="_blank" rel="noopener"'+trk('音乐',b.title)+'>':'<div class="vl-mu'+a+'">')+
