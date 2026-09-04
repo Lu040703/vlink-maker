@@ -156,7 +156,7 @@ function buildMenu() {
               title: '关于',
               message: 'VLink 页面制作器',
               detail:
-                '版本 1.0.0\n\n' +
+                '版本 1.0.4\n\n' +
                 '一个完全本地的聚合页制作工具。\n' +
                 '功能对齐 VLink 付费版：密码保护、无限模块、自定义样式，全部免费。\n\n' +
                 '所有数据只存在你这台电脑上，不会上传到任何服务器。',
@@ -174,7 +174,8 @@ function buildMenu() {
 /* ==================== 文件读写（供页面调用） ==================== */
 
 // 保存文件：弹出系统"另存为"窗口，用户自己选位置
-ipcMain.handle('save-file', async (event, { defaultName, content, encoding, filters }) => {
+ipcMain.handle('save-file', async (event, opts) => {
+  const { defaultName, content, encoding, filters } = opts || {};
   const win = BrowserWindow.getFocusedWindow() || mainWindow;
   const res = await dialog.showSaveDialog(win, {
     title: '保存文件',
