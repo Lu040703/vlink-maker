@@ -969,7 +969,7 @@ function renderBlocksList(){
       iconHtml+
       '<div class="blk-info" ondblclick="openModal(\''+b.id+'\')">'+
         '<div class="blk-name">'+esc(b.title||meta.n)+'</div>'+
-        '<div class="blk-type">'+esc(meta.n)+(b.url?' · '+esc(trunc(b.url,26)):'')+'</div>'+
+        '<div class="blk-type">'+esc(meta.n)+(b.type==='group'?(grpCount(i)?' · 含 '+grpCount(i)+' 个模块':' · （下面没有模块）'):(b.url?' · '+esc(trunc(b.url,26)):''))+'</div>'+
       '</div>'+
       '<div class="blk-ops">'+
         '<button class="iop" title="上移" onclick="moveBlk(\''+b.id+'\',-1)">↑</button>'+
@@ -984,6 +984,11 @@ function renderBlocksList(){
   bindDrag();
 }
 function trunc(s,n){ s=String(s||''); return s.length>n? s.slice(0,n)+'…' : s; }
+function grpCount(i){
+  var c=0;
+  for(var j=i+1;j<state.blocks.length;j++){ if(state.blocks[j].type==='group') break; c++; }
+  return c;
+}
 
 function renderAddGrid(){
   var g=$('addGrid'), html='';
@@ -1206,6 +1211,10 @@ function buildForm(type){
   }
   else if(type==='group'){
     h+=fld('分组标题', txt('title','例如：我的作品'));
+    h+=fld('默认状态', '<div class="seg">'+
+      '<button class="'+((tmpData.foldOpen!==false)?'on':'')+'" onclick="setTmpVal(\'foldOpen\',true)">展开</button>'+
+      '<button class="'+((tmpData.foldOpen===false)?'on':'')+'" onclick="setTmpVal(\'foldOpen\',false)">收起（堆叠）</button></div>');
+    h+=fld('怎么分组？', '<div style="font-size:12px;color:var(--txt3);line-height:1.7">分组标题会把它<b>下面</b>的所有模块归进这一组，直到遇到下一个分组标题。在模块列表里拖动排序即可调整谁属于哪组。访客点标题即可展开 / 收起，收起时模块叠成一摞。</div>');
   }
   return h + '<div style="height:2px"></div>';
 }
@@ -1405,6 +1414,19 @@ function buildPageCSS(){
 '.vl-sb{font-size:12px;opacity:.6;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
 '.vl-ar{flex-shrink:0;opacity:.32;font-size:17px;line-height:1}',
 '.vl-g{font-size:13px;font-weight:600;opacity:.62;margin:20px 0 10px;text-align:center;letter-spacing:.6px}',
+'.vl-gw{margin:2px 0}',
+'.vl-gh{display:flex;align-items:center;justify-content:center;gap:7px;font-size:13px;font-weight:600;opacity:.62;margin:20px 0 12px;letter-spacing:.6px;cursor:pointer;user-select:none;-webkit-user-select:none}',
+'.vl-gh:active{opacity:.95}',
+'.vl-ga{width:7px;height:7px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translateY(-2px);transition:transform .22s ease;flex-shrink:0;margin-top:2px}',
+'.vl-gw[data-open="0"] .vl-ga{transform:rotate(-135deg) translateY(-2px)}',
+'.vl-gw[data-open="0"] .vl-gitems{display:flow-root;position:relative;cursor:pointer}',
+'.vl-gw[data-open="0"] .vl-gitems > a{pointer-events:none}',
+'.vl-gw[data-open="0"] .vl-gitems > *:not(:first-child){display:none}',
+'.vl-gw[data-open="0"] .vl-gitems > *:first-child{position:relative;z-index:2}',
+'.vl-gw[data-open="0"] .vl-gitems::before,.vl-gw[data-open="0"] .vl-gitems::after{content:"";position:absolute;height:16px;border-radius:'+r+';background:'+cardBg+';border:'+cardBd+';pointer-events:none}',
+'.vl-gw-empty .vl-gitems::before,.vl-gw-empty .vl-gitems::after{display:none}',
+'.vl-gw[data-open="0"] .vl-gitems::after{left:9px;right:9px;bottom:2px;z-index:1}',
+'.vl-gw[data-open="0"] .vl-gitems::before{left:18px;right:18px;bottom:-2px;z-index:0}',
 '.vl-tx{font-size:13.5px;opacity:.76;line-height:1.75;margin-bottom:11px;white-space:pre-wrap;word-break:break-word}',
 '.vl-cv{width:100%;border-radius:'+r+';display:block;margin-bottom:11px;box-shadow:'+shadow+'}',
 '.vl-cvcap{font-size:13.5px;text-align:center;opacity:.8;margin:-4px 0 14px}',
@@ -1486,7 +1508,8 @@ function buildPageBody(){
   h+='</div>';
 
   /* 模块 */
-  state.blocks.forEach(function(b){
+  function renderBlk(b){
+    var h='';
     var a = t.anim ? ' vl-anim" style="animation-delay:'+Math.min(delay+=60,700)+'ms' : '';
     if(b.type==='link'){
       var ic='';
@@ -1503,9 +1526,6 @@ function buildPageBody(){
         '<div class="vl-mn"><div class="vl-tt">'+esc(b.title)+'</div>'+
         (b.subtitle?'<div class="vl-sb">'+esc(b.subtitle)+'</div>':'')+'</div>'+
         '<div class="vl-ar">›</div></a>';
-    }
-    else if(b.type==='group'){
-      h+='<div class="vl-g'+a+'">'+esc(b.title)+'</div>';
     }
     else if(b.type==='text'){
       h+='<div class="vl-tx'+a+'" style="text-align:'+(b.align||'center')+'">'+esc(b.text||'')+'</div>';
@@ -1586,6 +1606,26 @@ function buildPageBody(){
         (b.url?'<div class="vl-ar">▸</div>':'')+
         (b.url?'</a>':'</div>');
     }
+    return h;
+  }
+  /* 按分组切段：分组标题之后的模块归入该组，直到下一个分组标题 */
+  var segs=[],cur=null;
+  state.blocks.forEach(function(b){
+    if(b.type==='group'){ cur={g:b,items:[]}; segs.push(cur); }
+    else if(cur){ cur.items.push(b); }
+    else { cur={g:null,items:[b]}; segs.push(cur); }
+  });
+  segs.forEach(function(sg){
+    if(sg.g){
+      var open=sg.g.foldOpen!==false;
+      h+='<div class="vl-gw'+(sg.items.length?'':' vl-gw-empty')+'" data-open="'+(open?'1':'0')+'">'+
+        '<div class="vl-gh" onclick="vlGrp(this)">'+esc(sg.g.title||'分组')+'<i class="vl-ga"></i></div>'+
+        '<div class="vl-gitems" onclick="vlGrpTap(event,this)">';
+      sg.items.forEach(function(b){ h+=renderBlk(b); });
+      h+='</div></div>';
+    }else{
+      sg.items.forEach(function(b){ h+=renderBlk(b); });
+    }
   });
 
   /* 页脚 */
@@ -1618,6 +1658,15 @@ function buildPageJS(){
 '  if(el.getAttribute){var v=el.getAttribute("data-trk");',
 '   if(v){vlTrk(v);break;}}',
 '  el=el.parentNode;}});',
+'function vlGrp(el){',
+' var w=el.parentNode;',
+' var o=w.getAttribute("data-open")==="1";',
+' w.setAttribute("data-open",o?"0":"1");}',
+'function vlGrpTap(e,el){',
+' if(el.parentNode.getAttribute("data-open")!=="0")return;',
+' var t=e.target;',
+' while(t&&t!==el){if(t.tagName==="A"||t.tagName==="VIDEO"||t.tagName==="BUTTON")return;t=t.parentNode;}',
+' el.parentNode.setAttribute("data-open","1");}',
 'var vlIdx={};',
 'function vlGo(e,el,i){',
 ' e.preventDefault();e.stopPropagation();',
