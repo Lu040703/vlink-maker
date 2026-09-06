@@ -19,6 +19,12 @@ contextBridge.exposeInMainWorld('__vlinkDesktop', {
   saveFile: (opts) => ipcRenderer.invoke('save-file', opts),
 
   /**
+   * 图片分离导出：一次对话框，写入 index.html + img/ 图片文件夹
+   * @returns {Promise<{ok:boolean, path?:string, count?:number, canceled?:boolean, error?:string}>}
+   */
+  exportSplit: (opts) => ipcRenderer.invoke('export-split', opts),
+
+  /**
    * 选择并读取文件
    * @returns {Promise<{ok:boolean, path?:string, content?:string, canceled?:boolean, error?:string}>}
    */
@@ -29,7 +35,7 @@ contextBridge.exposeInMainWorld('__vlinkDesktop', {
    * @param {(action:string)=>void} cb
    */
   onMenu: (cb) => {
-    const actions = ['menu-export-html', 'menu-export-json', 'menu-import-json', 'menu-help'];
+    const actions = ['menu-export-html', 'menu-export-split', 'menu-export-json', 'menu-import-json', 'menu-help'];
     actions.forEach((a) => {
       ipcRenderer.on(a, () => cb(a));
     });
