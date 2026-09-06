@@ -264,6 +264,7 @@ input[type=range]{width:100%;accent-color:var(--brand)}
   <button class="hbtn" onclick="importJSON()">导入</button>
   <button class="hbtn" onclick="exportJSON()">备份</button>
   <button class="hbtn" onclick="openQR()">二维码</button>
+  <button class="hbtn" onclick="exportHTMLSplit()" title="生成 index.html + img 图片文件夹，上传网站加载最快">导出·图片分离</button>
   <button class="hbtn solid" onclick="exportHTML()">导出网页</button>
 </header>
 
@@ -569,15 +570,14 @@ input[type=range]{width:100%;accent-color:var(--brand)}
         </div>
         <div class="hint">
           <b>怎么让别人看到我的页面？</b><br>
-          1. 点右上角「导出网页」，<b>文件名保持 index 别改</b><br>
-          2. 把这一个文件上传到免费静态托管<br>
+          1. 点右上角「导出网页」（或菜单里的「导出网页·图片分离」），<b>文件名保持 index 别改</b><br>
+          2. 上传到你的网站空间<br>
           3. 拿到链接，就能像 VLink 一样到处发了<br><br>
-          导出的文件是<b>自带图片的单文件</b>，不用打包文件夹，传一个就够。<br><br>
-          <b>托管平台怎么选？</b><br>
-          推荐国内的（艾可秀 axureshow.com、腾讯云 CloudBase 等）：拖拽上传、不用 Git、国内打开快、微信里不弹警告。<br><br>
-          <b>不建议用 GitHub Pages</b>：服务器在海外，国内打开慢；github.io 没备案，微信里会弹安全警告，访客得手动点「继续访问」，很劝退；而且它是共享域名，别人违规你可能跟着被封。<br><br>
+          <b>两种导出怎么选？</b><br>
+          · <b>导出网页</b>：单文件、自带图片，传一个就够，图多时打开偏慢。<br>
+          · <b>导出·图片分离</b>（上传自己服务器首选）：得到 index.html + img 图片文件夹，<b>img 文件夹要和 index.html 放在一起</b>（宝塔里上传 index.html 后，在同级新建 img 文件夹把图片传进去）。页面本身只有十几 KB，打开最快，回头客几乎秒开。<br><br>
           <b>访问统计怎么办？</b><br>
-          在上面的「访问统计」里填 51.la 的 ID 和 CK，导出时会自动带上。页面必须传到网上才有数据。
+          用了自建统计的话，在「访问统计 → 自定义代码」里粘贴统计像素（例如 &lt;img src="https://你的域名/hit.php" ...&gt;）；或填 51.la 的 ID 和 CK。页面必须传到网上才有数据。
         </div>
       </div>
     </div>
@@ -811,11 +811,16 @@ function pickImage(path){
   inp.type='file'; inp.accept='image/*';
   inp.onchange=function(){
     var f=inp.files[0]; if(!f) return;
+    /* 按图片用途定压缩档位：头像小、背景稍大、其余标准 */
+    var preset=null;
+    if(path==='profile.avatar') preset={maxSide:320,budget:20*1024};
+    else if(path==='theme.bgImage') preset={maxSide:900,budget:60*1024};
+    else if(path==='settings.shareImg') preset={maxSide:800,budget:45*1024};
     compressImage(f, function(dataUrl){
       setPath(state, path, dataUrl);
       syncForm(); renderAll(); save();
-      toast('图片已上传');
-    });
+      toast('图片已上传（已自动压缩）');
+    }, preset);
   };
   inp.click();
 }
@@ -823,27 +828,46 @@ function clearImg(path){
   setPath(state,path,'');
   syncForm(); renderAll(); save();
 }
-function compressImage(file, cb){
+/* 压缩图片：限制长边 + 按预算逐级降质量，直到单图体积达标
+   preset: {maxSide:长边上限, budget:base64字符数预算, minSide:降级下限} */
+function compressImage(file, cb, preset){
+  var P=preset||{};
+  var MAXSIDE=P.maxSide||780;
+  var BUDGET=P.budget||45*1024;
+  var MINSIDE=P.minSide||420;
   var reader=new FileReader();
   reader.onload=function(e){
     var img=new Image();
     img.onload=function(){
-      var max=900;
       var w=img.width,h=img.height;
-      if(w>max||h>max){
-        var r=Math.min(max/w,max/h);
-        w=Math.round(w*r); h=Math.round(h*r);
-      }
+      var r=Math.min(1, MAXSIDE/Math.max(w,h));
+      var cw=Math.max(1,Math.round(w*r)), ch=Math.max(1,Math.round(h*r));
       var cv=document.createElement('canvas');
-      cv.width=w; cv.height=h;
-      var ctx=cv.getContext('2d');
-      ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
-      ctx.drawImage(img,0,0,w,h);
-      var out;
+      var draw=function(){
+        cv.width=cw; cv.height=ch;
+        var ctx=cv.getContext('2d');
+        ctx.fillStyle='#fff'; ctx.fillRect(0,0,cw,ch);
+        ctx.drawImage(img,0,0,cw,ch);
+      };
+      /* 小 PNG 优先保透明；超过预算照样转 JPEG */
       if(file.type==='image/png' && file.size<220000){
-        out=cv.toDataURL('image/png');
-      }else{
-        out=cv.toDataURL('image/jpeg',0.82);
+        draw();
+        var p=cv.toDataURL('image/png');
+        if(p.length<=BUDGET){ cb(p); return; }
+      }
+      var out=null;
+      var quals=[0.8,0.7,0.6,0.5];
+      for(var qi=0; qi<quals.length; qi++){
+        draw();
+        out=cv.toDataURL('image/jpeg',quals[qi]);
+        if(out.length<=BUDGET) break;
+      }
+      /* 还超标：再缩一档尺寸，质量 0.6 兜底 */
+      if(out && out.length>BUDGET && Math.max(cw,ch)>MINSIDE){
+        var r2=Math.min(1, MINSIDE/Math.max(cw,ch));
+        cw=Math.max(1,Math.round(cw*r2)); ch=Math.max(1,Math.round(ch*r2));
+        draw();
+        out=cv.toDataURL('image/jpeg',0.6);
       }
       cb(out);
     };
@@ -1827,6 +1851,45 @@ function exportHTML(){
   setTimeout(function(){ URL.revokeObjectURL(a.href); document.body.removeChild(a); },200);
   toast('已导出：'+name+'.html');
 }
+/* ==================== 图片分离导出：index.html + img 文件夹（上传网站首选，加载最快） ==================== */
+function buildSplitParts(){
+  var html=buildPageHTML();
+  var re=/data:image\/(jpeg|png|gif|webp);base64,([A-Za-z0-9+/=]+)/g;
+  var extMap={jpeg:'jpg',png:'png',gif:'gif',webp:'webp'};
+  var images=[], idx=0, m;
+  while((m=re.exec(html))!==null){
+    idx++;
+    images.push({name:'img'+idx+'.'+(extMap[m[1]]||'jpg'), base64:m[2]});
+  }
+  var i=0;
+  html=html.replace(re, function(all,g1){ i++; return 'img/img'+i+'.'+(extMap[g1]||'jpg'); });
+  /* 非首张图片懒加载：滑到才加载，首屏更快 */
+  var first=true;
+  html=html.replace(/<img\b([^>]*?)src="img\//g, function(all,attrs){
+    if(first){ first=false; return all; }
+    return '<img'+attrs+' loading="lazy" decoding="async" src="img/';
+  });
+  return {html:html, images:images};
+}
+function exportHTMLSplit(){
+  if(!statsWillExport()){
+    if(!confirm('⚠️ 你开了「访问统计」，但没有填有效的统计信息（51.la 的 ID/CK 或自定义代码）。\n\n这样导出的页面将【没有访问统计】，传到网上也看不到访客数据。\n\n确定要继续导出吗？\n（点「取消」回去填统计信息）')) return;
+  }
+  if(!deskAvailable()){ toast('图片分离导出需在桌面版中使用'); return; }
+  var parts=buildSplitParts();
+  if(!parts.images.length){
+    toast('页面里没有图片，用普通「导出网页」即可');
+    return;
+  }
+  window.__vlinkDesktop.exportSplit({
+    defaultName:'index.html',
+    html:parts.html,
+    images:parts.images
+  }).then(function(r){
+    if(r&&r.ok){ toast('已导出：'+r.path+'（含 '+r.count+' 张图，img 文件夹要和 index.html 一起上传）'); }
+    else if(r&&!r.canceled){ toast('导出失败：'+(r.error||'未知错误')); }
+  });
+}
 function exportJSON(){
   if(deskAvailable()){
     window.__vlinkDesktop.saveFile({
@@ -1977,6 +2040,7 @@ function renderAll(){
   if(window.__vlinkDesktop && window.__vlinkDesktop.onMenu){
     window.__vlinkDesktop.onMenu(function(a){
       if(a==='menu-export-html'){ exportHTML(); }
+      if(a==='menu-export-split'){ exportHTMLSplit(); }
       else if(a==='menu-export-json'){ exportJSON(); }
       else if(a==='menu-import-json'){ importJSON(); }
     });
