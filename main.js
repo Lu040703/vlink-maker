@@ -87,6 +87,10 @@ function buildMenu() {
           label: '导出网页（Ctrl+S）',
           click: () => mainWindow && mainWindow.webContents.send('menu-export-html')
         },
+        {
+          label: '导出网页·图片分离（上传网站推荐）',
+          click: () => mainWindow && mainWindow.webContents.send('menu-export-split')
+        },
         { type: 'separator' },
         {
           label: '备份数据（.json）',
@@ -156,9 +160,10 @@ function buildMenu() {
               title: '关于',
               message: 'VLink 页面制作器',
               detail:
-                '版本 1.0.5\n\n' +
+                '版本 1.0.6\n\n' +
                 '一个完全本地的聚合页制作工具。\n' +
                 '功能对齐 VLink 付费版：密码保护、无限模块、自定义样式，全部免费。\n' +
+                '1.0.6：图片自动压缩按用途定档（头像 20KB/标准图 45KB/背景 60KB，超了自动降质）；新增「导出·图片分离」（index.html + img 文件夹，上传网站加载最快）。\n' +
                 '1.0.5：导出前统计缺失防呆提醒；51.la 代码自动带兜底像素；帮助说明补充自建统计用法。\n\n' +
                 '所有数据只存在你这台电脑上，不会上传到任何服务器。',
               buttons: ['好']
@@ -201,6 +206,41 @@ ipcMain.handle('save-file', async (event, opts) => {
   }
 });
 
+// 图片分离导出：一个对话框，写入 index.html + img/ 图片文件夹（上传网站加载最快）
+ipcMain.handle('export-split', async (event, opts) => {
+  const { html, images, defaultName } = opts || {};
+  const win = BrowserWindow.getFocusedWindow() || mainWindow;
+  let filePath = null;
+
+  // 测试钩子：VLINK_TEST_OUT 指定输出路径时跳过对话框（供自动化测试用）
+  if (process.env.VLINK_TEST_OUT) {
+    filePath = process.env.VLINK_TEST_OUT;
+  } else {
+    const res = await dialog.showSaveDialog(win, {
+      title: '保存网页（会同时生成 img 图片文件夹，两者一起上传）',
+      defaultPath: path.join(app.getPath('documents'), defaultName || 'index.html'),
+      filters: [{ name: '网页文件', extensions: ['html'] }]
+    });
+    if (res.canceled || !res.filePath) return { ok: false, canceled: true };
+    filePath = res.filePath;
+  }
+
+  try {
+    fs.writeFileSync(filePath, '\ufeff' + (html || ''), 'utf8');
+    const imgDir = path.join(path.dirname(filePath), 'img');
+    if (!fs.existsSync(imgDir)) fs.mkdirSync(imgDir);
+    const list = Array.isArray(images) ? images : [];
+    list.forEach((im) => {
+      if (im && im.name && im.base64) {
+        fs.writeFileSync(path.join(imgDir, im.name), Buffer.from(im.base64, 'base64'));
+      }
+    });
+    return { ok: true, path: filePath, count: list.length };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
 // 打开文件：弹出系统"打开"窗口
 ipcMain.handle('open-file', async (event, { filters }) => {
   const win = BrowserWindow.getFocusedWindow() || mainWindow;
@@ -225,6 +265,8 @@ ipcMain.handle('open-file', async (event, { filters }) => {
 /* ==================== 生命周期 ==================== */
 
 app.whenReady().then(() => {
+  // VLINK_TEST=1：自动化测试模式，只注册 IPC 处理器，不开窗口不建菜单
+  if (process.env.VLINK_TEST === '1') return;
   createWindow();
   buildMenu();
 
